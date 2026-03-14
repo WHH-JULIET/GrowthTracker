@@ -16,6 +16,10 @@ app = FastAPI(title='Growth Tracker')
 app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ.get('SESSION_SECRET', 'dev-secret-change-in-prod'),
+    session_cookie='gt_session',
+    max_age=None,
+    https_only=False,
+    same_site='lax',
 )
 
 app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
