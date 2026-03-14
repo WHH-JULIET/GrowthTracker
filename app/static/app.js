@@ -1,5 +1,3 @@
-const today = new Date().toISOString().split('T')[0];
-
 const form = document.getElementById('entryForm');
 const summaryContent = document.getElementById('summaryContent');
 const historyList = document.getElementById('historyList');
@@ -16,32 +14,94 @@ let editingDate = null;
 async function initAuth() {
   const res = await fetch('/auth/me');
   const data = await res.json();
-
   if (!data.authenticated) {
     loginWall.style.display = 'flex';
     mainContent.style.display = 'none';
-    authBar.innerHTML = `<a href="/auth/login" class="btn-google-small">Sign in</a>`;
+    authBar.innerHTML = '';
     return false;
   }
+  showApp(data.username);
+  return true;
+}
 
+function showApp(username) {
   loginWall.style.display = 'none';
   mainContent.style.display = 'grid';
   authBar.innerHTML = `
-    <div class="user-info">
-      ${data.picture ? `<img src="${data.picture}" class="avatar" alt="${data.name}" />` : ''}
-      <span>${data.name}</span>
-      <a href="/auth/logout" class="btn-logout">Sign out</a>
+    <div class="user-pill">
+      <span class="user-pill-name">👤 ${username}</span>
+      <button class="btn-logout" id="logoutBtn">Sign out</button>
     </div>
   `;
-  return true;
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await fetch('/auth/logout', { method: 'POST' });
+    location.reload();
+  });
 }
+
+// ── Login / Register tabs ─────────────────────────────────────────────────────
+document.getElementById('tabLogin').addEventListener('click', () => {
+  document.getElementById('loginForm').style.display = 'grid';
+  document.getElementById('registerForm').style.display = 'none';
+  document.getElementById('tabLogin').classList.add('active');
+  document.getElementById('tabRegister').classList.remove('active');
+});
+
+document.getElementById('tabRegister').addEventListener('click', () => {
+  document.getElementById('registerForm').style.display = 'grid';
+  document.getElementById('loginForm').style.display = 'none';
+  document.getElementById('tabRegister').classList.add('active');
+  document.getElementById('tabLogin').classList.remove('active');
+});
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('loginUsername').value.trim();
+  const pin = document.getElementById('loginPin').value.trim();
+  const err = document.getElementById('loginError');
+  const res = await fetch('/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, pin })
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    err.innerHTML = '⚠️ ' + data.error;
+    err.style.display = 'flex';
+    return;
+  }
+  err.style.display = 'none';
+  showApp(data.username);
+  loadLast();
+  loadHistory();
+});
+
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('regUsername').value.trim();
+  const pin = document.getElementById('regPin').value.trim();
+  const err = document.getElementById('registerError');
+  const res = await fetch('/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, pin })
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    err.innerHTML = '⚠️ ' + data.error;
+    err.style.display = 'flex';
+    return;
+  }
+  err.style.display = 'none';
+  showApp(data.username);
+  loadLast();
+  loadHistory();
+});
 
 // ── Medicines toggle ──────────────────────────────────────────────────────────
 hasMedicinesCheck.addEventListener('change', () => {
   medicinesTakenRow.style.display = hasMedicinesCheck.checked ? 'grid' : 'none';
-  if (!hasMedicinesCheck.checked) {
-    form.elements['medicines_taken'].checked = false;
-  }
+  if (!hasMedicinesCheck.checked) form.elements['medicines_taken'].checked = false;
 });
 
 // ── Summary rendering ─────────────────────────────────────────────────────────
@@ -61,10 +121,9 @@ function renderEntry(entry) {
     summaryContent.innerHTML = '<p class="placeholder">No entries yet.</p>';
     return;
   }
-  let medicineHtml = '';
-  if (entry.has_medicines) {
-    medicineHtml = `<div><strong>Medicines:</strong> ${entry.medicines_taken ? 'Taken' : 'Not taken'}</div>`;
-  }
+  const medicineHtml = entry.has_medicines
+    ? `<div><strong>Medicines:</strong> ${entry.medicines_taken ? 'Taken' : 'Not taken'}</div>`
+    : '';
   summaryContent.innerHTML = `
     <div><strong>Date:</strong> ${entry.date}</div>
     <div><strong>Goals:</strong> ${entry.goals || '-'}</div>
@@ -136,7 +195,6 @@ function renderHistory(entries) {
     historyList.innerHTML = '<p class="placeholder">No history yet.</p>';
     return;
   }
-
   const reversed = entries.slice().reverse();
   const visible = historyShowAll ? reversed : reversed.slice(0, HISTORY_PAGE_SIZE);
   visible.forEach(entry => historyList.appendChild(buildHistoryItem(entry)));
@@ -145,10 +203,7 @@ function renderHistory(entries) {
     const btn = document.createElement('button');
     btn.className = 'btn-view-more';
     btn.textContent = historyShowAll ? 'Show Less ▲' : `View More (${reversed.length - HISTORY_PAGE_SIZE} more) ▼`;
-    btn.addEventListener('click', () => {
-      historyShowAll = !historyShowAll;
-      renderHistory(entries);
-    });
+    btn.addEventListener('click', () => { historyShowAll = !historyShowAll; renderHistory(entries); });
     historyList.appendChild(btn);
   }
 
@@ -174,40 +229,32 @@ function renderHistory(entries) {
 async function loadHistory() {
   const res = await fetch('/api/entries');
   if (res.status === 401) return;
-  const entries = await res.json();
-  renderHistory(entries);
+  renderHistory(await res.json());
 }
 
 async function loadLast() {
   const res = await fetch('/api/entries/last');
   if (res.status === 401) return;
-  const entry = await res.json();
-  renderEntry(entry);
+  renderEntry(await res.json());
 }
 
 // ── Form submit ───────────────────────────────────────────────────────────────
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(form).entries());
-  const textFields = ['goals', 'people_involved', 'food', 'sports'];
-  const empty = textFields.find(f => !data[f] || !data[f].trim());
-  if (empty) {
-    alert(`"${empty.replace('_', ' ')}" is required. Write "nil" if nothing to fill.`);
-    return;
-  }
+  const empty = ['goals', 'people_involved', 'food', 'sports'].find(f => !data[f]?.trim());
+  if (empty) { alert(`"${empty.replace('_', ' ')}" is required. Write "nil" if nothing to fill.`); return; }
   data.phone_minutes = parseInt(data.phone_minutes || '0', 10);
   data.has_medicines = form.elements['has_medicines'].checked;
   data.medicines_taken = form.elements['medicines_taken'].checked;
 
   const url = editingDate ? `/api/entries/${editingDate}` : '/api/entries';
-  const method = editingDate ? 'PUT' : 'POST';
   const res = await fetch(url, {
-    method,
+    method: editingDate ? 'PUT' : 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  const entry = await res.json();
-  renderEntry(entry);
+  renderEntry(await res.json());
   resetForm();
   await loadHistory();
 });
@@ -215,9 +262,4 @@ form.addEventListener('submit', async (e) => {
 loadLastBtn.addEventListener('click', loadLast);
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-initAuth().then(authenticated => {
-  if (authenticated) {
-    loadLast();
-    loadHistory();
-  }
-});
+initAuth().then(ok => { if (ok) { loadLast(); loadHistory(); } });
