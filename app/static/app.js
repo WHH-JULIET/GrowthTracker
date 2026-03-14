@@ -1,12 +1,50 @@
 const today = new Date().toISOString().split('T')[0];
-document.getElementById('dateInput').min = today;
 
 const form = document.getElementById('entryForm');
 const summaryContent = document.getElementById('summaryContent');
 const historyList = document.getElementById('historyList');
 const loadLastBtn = document.getElementById('loadLast');
+const authBar = document.getElementById('authBar');
+const loginWall = document.getElementById('loginWall');
+const mainContent = document.getElementById('mainContent');
+const hasMedicinesCheck = document.getElementById('hasMedicinesCheck');
+const medicinesTakenRow = document.getElementById('medicinesTakenRow');
+
 let editingDate = null;
 
+// ── Auth ──────────────────────────────────────────────────────────────────────
+async function initAuth() {
+  const res = await fetch('/auth/me');
+  const data = await res.json();
+
+  if (!data.authenticated) {
+    loginWall.style.display = 'flex';
+    mainContent.style.display = 'none';
+    authBar.innerHTML = `<a href="/auth/login" class="btn-google-small">Sign in</a>`;
+    return false;
+  }
+
+  loginWall.style.display = 'none';
+  mainContent.style.display = 'grid';
+  authBar.innerHTML = `
+    <div class="user-info">
+      ${data.picture ? `<img src="${data.picture}" class="avatar" alt="${data.name}" />` : ''}
+      <span>${data.name}</span>
+      <a href="/auth/logout" class="btn-logout">Sign out</a>
+    </div>
+  `;
+  return true;
+}
+
+// ── Medicines toggle ──────────────────────────────────────────────────────────
+hasMedicinesCheck.addEventListener('change', () => {
+  medicinesTakenRow.style.display = hasMedicinesCheck.checked ? 'grid' : 'none';
+  if (!hasMedicinesCheck.checked) {
+    form.elements['medicines_taken'].checked = false;
+  }
+});
+
+// ── Summary rendering ─────────────────────────────────────────────────────────
 function formatSummary(raw) {
   if (!raw) return '<p class="placeholder">-</p>';
   const parts = raw.split(' | ');
@@ -23,6 +61,10 @@ function renderEntry(entry) {
     summaryContent.innerHTML = '<p class="placeholder">No entries yet.</p>';
     return;
   }
+  let medicineHtml = '';
+  if (entry.has_medicines) {
+    medicineHtml = `<div><strong>Medicines:</strong> ${entry.medicines_taken ? 'Taken' : 'Not taken'}</div>`;
+  }
   summaryContent.innerHTML = `
     <div><strong>Date:</strong> ${entry.date}</div>
     <div><strong>Goals:</strong> ${entry.goals || '-'}</div>
@@ -30,7 +72,7 @@ function renderEntry(entry) {
     <div><strong>Phone time:</strong> ${entry.phone_minutes || 0} min</div>
     <div><strong>Food:</strong> ${entry.food || '-'}</div>
     <div><strong>Sports:</strong> ${entry.sports || '-'}</div>
-    <div><strong>Medicines:</strong> ${entry.medicines_taken ? 'Taken' : 'Not taken'}</div>
+    ${medicineHtml}
     <div><strong>Summary:</strong>${formatSummary(entry.summary)}</div>
   `;
 }
@@ -44,6 +86,8 @@ function fillFormForEdit(entry) {
   form.elements['phone_minutes'].value = entry.phone_minutes || 0;
   form.elements['food'].value = entry.food || '';
   form.elements['sports'].value = entry.sports || '';
+  form.elements['has_medicines'].checked = !!entry.has_medicines;
+  medicinesTakenRow.style.display = entry.has_medicines ? 'grid' : 'none';
   form.elements['medicines_taken'].checked = !!entry.medicines_taken;
   form.querySelector('button[type="submit"]').textContent = 'Update Entry';
   form.scrollIntoView({ behavior: 'smooth' });
@@ -53,15 +97,20 @@ function resetForm() {
   editingDate = null;
   document.getElementById('dateInput').disabled = false;
   form.querySelector('button[type="submit"]').textContent = 'Save Entry';
+  medicinesTakenRow.style.display = 'none';
   form.reset();
 }
 
+// ── History ───────────────────────────────────────────────────────────────────
 const HISTORY_PAGE_SIZE = 2;
 let historyShowAll = false;
 
 function buildHistoryItem(entry) {
   const item = document.createElement('div');
   item.className = 'history-item';
+  const medicineHtml = entry.has_medicines
+    ? `<div><strong>Medicines:</strong> ${entry.medicines_taken ? 'Taken' : 'Not taken'}</div>`
+    : '';
   item.innerHTML = `
     <div class="history-item-header">
       <h3>${entry.date}</h3>
@@ -75,7 +124,7 @@ function buildHistoryItem(entry) {
     <div><strong>Phone:</strong> ${entry.phone_minutes || 0} min</div>
     <div><strong>Food:</strong> ${entry.food || '-'}</div>
     <div><strong>Sports:</strong> ${entry.sports || '-'}</div>
-    <div><strong>Medicines:</strong> ${entry.medicines_taken ? 'Taken' : 'Not taken'}</div>
+    ${medicineHtml}
     <div><strong>Summary:</strong> ${entry.summary || '-'}</div>
   `;
   return item;
@@ -90,7 +139,6 @@ function renderHistory(entries) {
 
   const reversed = entries.slice().reverse();
   const visible = historyShowAll ? reversed : reversed.slice(0, HISTORY_PAGE_SIZE);
-
   visible.forEach(entry => historyList.appendChild(buildHistoryItem(entry)));
 
   if (reversed.length > HISTORY_PAGE_SIZE) {
@@ -125,16 +173,19 @@ function renderHistory(entries) {
 
 async function loadHistory() {
   const res = await fetch('/api/entries');
+  if (res.status === 401) return;
   const entries = await res.json();
   renderHistory(entries);
 }
 
 async function loadLast() {
   const res = await fetch('/api/entries/last');
+  if (res.status === 401) return;
   const entry = await res.json();
   renderEntry(entry);
 }
 
+// ── Form submit ───────────────────────────────────────────────────────────────
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const data = Object.fromEntries(new FormData(form).entries());
@@ -145,33 +196,28 @@ form.addEventListener('submit', async (e) => {
     return;
   }
   data.phone_minutes = parseInt(data.phone_minutes || '0', 10);
+  data.has_medicines = form.elements['has_medicines'].checked;
   data.medicines_taken = form.elements['medicines_taken'].checked;
 
-  if (editingDate) {
-    const res = await fetch(`/api/entries/${editingDate}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    const entry = await res.json();
-    renderEntry(entry);
-  } else {
-    const res = await fetch('/api/entries', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    const entry = await res.json();
-    renderEntry(entry);
-  }
-
+  const url = editingDate ? `/api/entries/${editingDate}` : '/api/entries';
+  const method = editingDate ? 'PUT' : 'POST';
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  const entry = await res.json();
+  renderEntry(entry);
   resetForm();
   await loadHistory();
 });
 
-loadLastBtn.addEventListener('click', async () => {
-  await loadLast();
-});
+loadLastBtn.addEventListener('click', loadLast);
 
-loadLast();
-loadHistory();
+// ── Boot ──────────────────────────────────────────────────────────────────────
+initAuth().then(authenticated => {
+  if (authenticated) {
+    loadLast();
+    loadHistory();
+  }
+});

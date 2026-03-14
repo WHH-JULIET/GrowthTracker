@@ -15,11 +15,23 @@
         <div>
           <div class="eyebrow">Daily Growth Tracker</div>
           <h1>Build the day you want</h1>
-          <p class="sub">Log goals, communication, phone time, food, sports, medicines. Get a focused improvement summary.</p>
+          <p class="sub">Log goals, people, phone time, food, sports. Get a focused improvement summary.</p>
         </div>
+        <div id="authBar" class="auth-bar"></div>
       </header>
 
-      <main class="content">
+      <div id="loginWall" class="login-wall" style="display:none;">
+        <div class="card login-card">
+          <h2>Sign in to continue</h2>
+          <p>Your data is private and only visible to you.</p>
+          <a href="/auth/login" class="btn-google">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" alt="Google" />
+            Sign in with Google
+          </a>
+        </div>
+      </div>
+
+      <main class="content" id="mainContent" style="display:none;">
         <section class="card form-card">
           <h2>New Entry</h2>
           <form id="entryForm">
@@ -54,8 +66,13 @@
             </label>
 
             <label class="toggle">
+              <input type="checkbox" name="has_medicines" id="hasMedicinesCheck" />
+              I have prescribed medicines
+            </label>
+
+            <label class="toggle" id="medicinesTakenRow" style="display:none;">
               <input type="checkbox" name="medicines_taken" />
-              Medicines taken
+              Medicines taken today
             </label>
 
             <button type="submit">Save Entry</button>
