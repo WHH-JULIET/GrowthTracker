@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Growth Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="header">
+        <div>
+          <div class="eyebrow">Daily Growth Tracker</div>
+          <h1>Build the day you want</h1>
+          <p class="sub">Log goals, communication, phone time, food, sports, medicines. Get a focused improvement summary.</p>
+        </div>
+      </header>
+
+      <main class="content">
+        <section class="card form-card">
+          <h2>New Entry</h2>
+          <form id="entryForm">
+            <label>
+              Date
+              <input type="date" name="date" value="{{ today }}" />
+            </label>
+
+            <label>
+              Goals
+              <textarea name="goals" rows="3" placeholder="Top 1-3 goals"></textarea>
+            </label>
+
+            <div class="row two">
+              <label class="work">
+                Work Communication
+                <textarea name="communication_work" rows="2" placeholder="People/topics"></textarea>
+              </label>
+              <label class="timepass">
+                Timepass Communication
+                <textarea name="communication_timepass" rows="2" placeholder="People/topics"></textarea>
+              </label>
+            </div>
+
+            <div class="row two">
+              <label>
+                Phone Time (min)
+                <input type="number" name="phone_minutes" min="0" placeholder="0" />
+              </label>
+              <label>
+                Notifications
+                <input type="number" name="notifications" min="0" placeholder="0" />
+              </label>
+            </div>
+
+            <label>
+              Food Items
+              <textarea name="food" rows="2" placeholder="Meals/snacks"></textarea>
+            </label>
+
+            <label>
+              Sports/Activity
+              <textarea name="sports" rows="2" placeholder="Sports or workout"></textarea>
+            </label>
+
+            <label class="toggle">
+              <input type="checkbox" name="medicines_taken" />
+              Medicines taken
+            </label>
+
+            <button type="submit">Save Entry</button>
+          </form>
+        </section>
+
+        <section class="card summary-card">
+          <div class="summary-header">
+            <h2>Latest Entry</h2>
+            <button id="loadLast" type="button">Load Last</button>
+          </div>
+          <div id="summaryContent" class="summary-content">
+            <p class="placeholder">No entries yet.</p>
+          </div>
+        </section>
+
+        <section class="card history-card">
+          <h2>History</h2>
+          <div id="historyList" class="history-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
