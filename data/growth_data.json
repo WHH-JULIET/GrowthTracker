@@ -1,26 +1,32 @@
 [
   {
-    "date": "2026-03-14",
-    "goals": "Go to gym, complete figma design, learn DAA",
-    "communication_work": "Srusti",
-    "communication_timepass": "Adarsh",
-    "phone_minutes": 240,
-    "notifications": 4,
-    "food": "ragi roti, snacks",
-    "sports": "gym",
+    "date": "2026-04-03",
+    "goals": "h",
+    "people_involved": "j",
+    "phone_minutes": 8,
+    "food": "i",
+    "sports": "u",
+    "medicines_taken": false,
+    "summary": "Phone usage looks controlled; keep the same or slightly lower. Remember medicines if required in your routine. Review goals at the start and end of day to close loops."
+  },
+  {
+    "date": "2026-03-15",
+    "goals": "Studying and playing",
+    "people_involved": "me",
+    "phone_minutes": 80,
+    "food": "rice and daal",
+    "sports": "yoga",
     "medicines_taken": true,
-    "summary": "Phone time is moderate; try 15-30 min less tomorrow. Low notifications; good focus potential. Balance timepass with work tasks; keep timepass limited to breaks. Review goals at the start and end of day to close loops."
+    "summary": "Phone usage looks controlled; keep the same or slightly lower. Review goals at the start and end of day to close loops."
   },
   {
     "date": "2026-03-14",
-    "goals": "complete applications, watch spyxfamily",
-    "communication_work": "none",
-    "communication_timepass": "none",
-    "phone_minutes": 60,
-    "notifications": 65,
-    "food": "panipuri",
-    "sports": "none",
+    "goals": "tour",
+    "people_involved": "family",
+    "phone_minutes": 120,
+    "food": "pav bhaji",
+    "sports": "nil",
     "medicines_taken": false,
-    "summary": "Phone usage looks controlled; keep the same or slightly lower. Moderate notifications; batch-check instead of constant checks. Balance timepass with work tasks; keep timepass limited to breaks. Remember medicines if required in your routine. Review goals at the start and end of day to close loops."
+    "summary": "Phone usage looks controlled; keep the same or slightly lower. Remember medicines if required in your routine. Review goals at the start and end of day to close loops."
   }
 ]

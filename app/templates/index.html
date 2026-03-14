@@ -25,44 +25,32 @@
           <form id="entryForm">
             <label>
               Date
-              <input type="date" name="date" value="{{ today }}" />
+              <input type="date" name="date" id="dateInput" value="{{ today }}" />
             </label>
 
             <label>
               Goals
-              <textarea name="goals" rows="3" placeholder="Top 1-3 goals"></textarea>
+              <textarea name="goals" rows="3" placeholder="Top 1-3 goals (or nil)" required></textarea>
             </label>
 
-            <div class="row two">
-              <label class="work">
-                Work Communication
-                <textarea name="communication_work" rows="2" placeholder="People/topics"></textarea>
-              </label>
-              <label class="timepass">
-                Timepass Communication
-                <textarea name="communication_timepass" rows="2" placeholder="People/topics"></textarea>
-              </label>
-            </div>
+            <label>
+              People Involved in My Life
+              <textarea name="people_involved" rows="3" placeholder="People you interacted with today (or nil)" required></textarea>
+            </label>
 
-            <div class="row two">
-              <label>
-                Phone Time (min)
-                <input type="number" name="phone_minutes" min="0" placeholder="0" />
-              </label>
-              <label>
-                Notifications
-                <input type="number" name="notifications" min="0" placeholder="0" />
-              </label>
-            </div>
+            <label>
+              Phone Time (min)
+              <input type="number" name="phone_minutes" min="0" placeholder="0" />
+            </label>
 
             <label>
               Food Items
-              <textarea name="food" rows="2" placeholder="Meals/snacks"></textarea>
+              <textarea name="food" rows="2" placeholder="Meals/snacks (or nil)" required></textarea>
             </label>
 
             <label>
               Sports/Activity
-              <textarea name="sports" rows="2" placeholder="Sports or workout"></textarea>
+              <textarea name="sports" rows="2" placeholder="Sports or workout (or nil)" required></textarea>
             </label>
 
             <label class="toggle">

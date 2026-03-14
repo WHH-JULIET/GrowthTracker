@@ -53,47 +53,73 @@ def _safe_int(value, default=0):
         return default
 
 
+import random
+
+_CLOSERS_HIGH = [
+    "You're building something real. Keep that energy tomorrow.",
+    "Solid day. One more like this and it becomes a streak.",
+    "This is what growth looks like. Show up the same way tomorrow.",
+    "You did the work. That's what separates people who talk from people who do.",
+]
+_CLOSERS_MID = [
+    "Not perfect, but you showed up. That already puts you ahead of most.",
+    "Good foundation. Tomorrow, pick one thing to do better and own it.",
+    "Progress isn't always loud. You moved forward today — build on it.",
+    "Every average day you push through is training for your best days.",
+]
+_CLOSERS_LOW = [
+    "Today wasn't your best — and that's okay. Reset, sleep well, attack tomorrow.",
+    "The fact that you're tracking means you care. Use that energy tomorrow.",
+    "One rough day doesn't define the week. Tomorrow is a clean slate.",
+    "You logged it. That's honesty. Now use it as fuel, not guilt.",
+]
+
+
+
 def _generate_summary(entry):
-    lines = []
-    phone_minutes = entry.get('phone_minutes', 0)
-    notifications = entry.get('notifications', 0)
-    work = entry.get('communication_work', '')
-    timepass = entry.get('communication_timepass', '')
-    sports = entry.get('sports', '')
+    phone = entry.get('phone_minutes', 0)
+    goals = (entry.get('goals') or '').strip()
+    sports = (entry.get('sports') or '').strip()
+    food = (entry.get('food') or '').strip()
+    people = (entry.get('people_involved') or '').strip()
     medicines = entry.get('medicines_taken', False)
-    goals = entry.get('goals', '')
+    lines = []
 
-    if phone_minutes > 240:
-        lines.append('Reduce phone usage; consider focused blocks without phone.')
-    elif phone_minutes > 120:
-        lines.append('Phone time is moderate; try 15-30 min less tomorrow.')
+    if phone <= 60:
+        lines.append(f'Only {phone} min on phone — your focus was sharp today.')
+    elif phone <= 120:
+        lines.append(f'{phone} min on phone is decent. Try cutting 20 min tomorrow for an extra focus block.')
+    elif phone <= 240:
+        lines.append(f'{phone} min on phone is eating into your productive hours. Set app limits tonight.')
     else:
-        lines.append('Phone usage looks controlled; keep the same or slightly lower.')
+        lines.append(f'{phone} min on phone is too high. Put it face-down during work and meals tomorrow.')
 
-    if notifications > 80:
-        lines.append('High notifications; mute non-essential apps for deep work.')
-    elif notifications > 30:
-        lines.append('Moderate notifications; batch-check instead of constant checks.')
+    if goals and goals.lower() != 'nil':
+        lines.append(f'Goals set: "{goals[:80]}{'...' if len(goals) > 80 else ''}". Before sleeping, check which ones you actually completed.')
     else:
-        lines.append('Low notifications; good focus potential.')
+        lines.append('No goals logged. Tomorrow morning, write down 1-3 specific things you want to finish.')
 
-    if not work:
-        lines.append('Add at least one work-related communication or progress check-in.')
-    if timepass and work:
-        lines.append('Balance timepass with work tasks; keep timepass limited to breaks.')
+    if sports and sports.lower() != 'nil':
+        lines.append(f'You moved your body ({sports[:50]}). Physical activity directly boosts focus and mood the next day.')
+    else:
+        lines.append('No physical activity today. Even a 20-min walk tomorrow will improve your energy and sleep quality.')
 
-    if not sports:
-        lines.append('Add 15-30 minutes of physical activity.')
+    if food and food.lower() != 'nil':
+        lines.append(f'Food tracked ({food[:50]}). Stay mindful of protein and hydration — they fuel your brain.')
+    else:
+        lines.append('No food logged. What you eat directly affects your energy. Be more intentional tomorrow.')
+
+    if people and people.lower() != 'nil':
+        lines.append(f'You engaged with people ({people[:50]}). Nurture the right relationships — they are part of growth.')
+    else:
+        lines.append('No interactions logged. Reach out to one person tomorrow — a mentor, friend, or teammate.')
 
     if not medicines:
-        lines.append('Remember medicines if required in your routine.')
+        lines.append('Medicines not taken. Set a daily alarm so you never miss.')
 
-    if goals:
-        lines.append('Review goals at the start and end of day to close loops.')
-    else:
-        lines.append('Set 1-3 clear goals for tomorrow.')
+    lines.append(random.choice(_CLOSERS_HIGH if phone <= 120 and (sports and sports.lower() != 'nil') else _CLOSERS_MID if phone <= 240 else _CLOSERS_LOW))
 
-    return ' '.join(lines)
+    return ' | '.join(lines)
 
 
 @app.get('/', response_class=HTMLResponse)
@@ -114,10 +140,8 @@ async def create_entry(request: Request):
     entry = {
         'date': payload.get('date') or _today_str(),
         'goals': (payload.get('goals') or '').strip(),
-        'communication_work': (payload.get('communication_work') or '').strip(),
-        'communication_timepass': (payload.get('communication_timepass') or '').strip(),
+        'people_involved': (payload.get('people_involved') or '').strip(),
         'phone_minutes': _safe_int(payload.get('phone_minutes'), 0),
-        'notifications': _safe_int(payload.get('notifications'), 0),
         'food': (payload.get('food') or '').strip(),
         'sports': (payload.get('sports') or '').strip(),
         'medicines_taken': bool(payload.get('medicines_taken')),
@@ -137,3 +161,35 @@ def last_entry():
     if not entries:
         return JSONResponse({})
     return JSONResponse(entries[-1])
+
+
+@app.put('/api/entries/{date}')
+async def update_entry(date: str, request: Request):
+    payload = await request.json()
+    entries = _read_entries()
+    idx = next((i for i, e in enumerate(entries) if e['date'] == date), None)
+    if idx is None:
+        return JSONResponse({'error': 'Not found'}, status_code=404)
+    entry = {
+        'date': date,
+        'goals': (payload.get('goals') or '').strip(),
+        'people_involved': (payload.get('people_involved') or '').strip(),
+        'phone_minutes': _safe_int(payload.get('phone_minutes'), 0),
+        'food': (payload.get('food') or '').strip(),
+        'sports': (payload.get('sports') or '').strip(),
+        'medicines_taken': bool(payload.get('medicines_taken')),
+    }
+    entry['summary'] = _generate_summary(entry)
+    entries[idx] = entry
+    _write_entries(entries)
+    return JSONResponse(entry)
+
+
+@app.delete('/api/entries/{date}')
+def delete_entry(date: str):
+    entries = _read_entries()
+    new_entries = [e for e in entries if e['date'] != date]
+    if len(new_entries) == len(entries):
+        return JSONResponse({'error': 'Not found'}, status_code=404)
+    _write_entries(new_entries)
+    return JSONResponse({'deleted': date})

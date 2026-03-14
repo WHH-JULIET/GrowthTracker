@@ -87,17 +87,35 @@ button {
   border: none;
   background: var(--accent);
   color: white;
-  padding: 12px 16px;
+  padding: 12px 20px;
   border-radius: 14px;
   font-weight: 600;
   font-family: inherit;
+  font-size: 14px;
   cursor: pointer;
+  transition: background 0.18s, transform 0.1s, box-shadow 0.18s;
+  box-shadow: 0 4px 14px rgba(31,122,140,0.18);
+}
+
+button:hover {
+  background: #176878;
+  box-shadow: 0 6px 18px rgba(31,122,140,0.28);
+}
+
+button:active {
+  transform: scale(0.97);
 }
 
 button#loadLast {
   background: transparent;
   color: var(--accent);
-  border: 1px solid var(--accent);
+  border: 1.5px solid var(--accent);
+  box-shadow: none;
+}
+
+button#loadLast:hover {
+  background: rgba(31,122,140,0.07);
+  box-shadow: none;
 }
 
 .row.two {
@@ -132,6 +150,26 @@ button#loadLast {
   font-size: 14px;
 }
 
+.summary-points {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
+.summary-closer {
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #f0faf7, #e8f4f8);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--accent);
+  line-height: 1.5;
+}
+
 .placeholder {
   color: var(--muted);
 }
@@ -144,15 +182,6 @@ button#loadLast {
   font-weight: 600;
 }
 
-.badge.work {
-  background: rgba(31, 122, 140, 0.15);
-  color: var(--accent);
-}
-
-.badge.timepass {
-  background: rgba(242, 143, 59, 0.18);
-  color: var(--accent-2);
-}
 
 .history-list {
   display: grid;
@@ -168,9 +197,73 @@ button#loadLast {
   font-size: 14px;
 }
 
+.history-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .history-item h3 {
   margin: 0;
   font-size: 16px;
+}
+
+.history-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-edit, .btn-delete {
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: background 0.18s, color 0.18s, transform 0.1s;
+  box-shadow: none;
+}
+
+.btn-edit {
+  background: rgba(31,122,140,0.08);
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+}
+
+.btn-edit:hover {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: none;
+}
+
+.btn-delete {
+  background: rgba(192,57,43,0.07);
+  color: #c0392b;
+  border: 1.5px solid #c0392b;
+}
+
+.btn-delete:hover {
+  background: #c0392b;
+  color: #fff;
+  box-shadow: none;
+}
+
+.btn-view-more {
+  background: transparent;
+  color: var(--muted);
+  border: 1.5px dashed #ccc;
+  box-shadow: none;
+  width: 100%;
+  padding: 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.btn-view-more:hover {
+  background: rgba(0,0,0,0.03);
+  color: var(--ink);
+  box-shadow: none;
 }
 
 @media (max-width: 720px) {
