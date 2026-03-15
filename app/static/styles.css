@@ -446,3 +446,72 @@ button#loadLast:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Chip groups (goals / food / sports) ── */
+.chip-group {
+  border: 1.5px solid #e0e0e0;
+  border-radius: 14px;
+  padding: 14px 14px 10px;
+  margin: 0;
+}
+
+.chip-group legend {
+  font-weight: 600;
+  font-size: 14px;
+  padding: 0 6px;
+  color: var(--ink);
+}
+
+.field-hint {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1.5px solid #ddd;
+  background: #fafafa;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  user-select: none;
+}
+
+.chip input[type="checkbox"],
+.chip input[type="radio"] {
+  display: none;
+}
+
+.chip:has(input:checked) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.chip:has(input:checked):hover {
+  background: #176878;
+  color: #fff;
+}
+
+.chip-group input[type="text"] {
+  width: 100%;
+  margin-top: 2px;
+}

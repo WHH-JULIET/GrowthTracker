@@ -1,13 +1,14 @@
 [
   {
     "date": "2026-03-14",
-    "goals": "d",
-    "people_involved": "2",
-    "phone_minutes": 2,
-    "food": "ss",
-    "sports": "s",
-    "has_medicines": true,
-    "medicines_taken": true,
-    "summary": "Only 2 min on phone \u2014 your focus was sharp today. | Goals set: \"d\". Before sleeping, check which ones you actually completed. | You moved your body (s). Physical activity directly boosts focus and mood the next day. | Food tracked (ss). Stay mindful of protein and hydration \u2014 they fuel your brain. | You engaged with people (2). Nurture the right relationships \u2014 they are part of growth. | Medicines taken. Good \u2014 consistency with medication is important. | You're building something real. Keep that energy tomorrow."
+    "created_at": "2026-03-15T14:25:50.192210",
+    "goals": "Completed a project",
+    "people_involved": "Friends and family",
+    "phone_minutes": 30,
+    "food": "Protein bar, dosa, daal, chowmin",
+    "sports": "Gym workout",
+    "has_medicines": false,
+    "medicines_taken": false,
+    "summary": "On March 14, you spent only 30 min on your phone \u2014 solid focus. | Goals logged: Completed a project. Review which ones were completed before the day ends. | On March 14, you logged physical activity: Gym workout. Staying active directly improves focus and mood. | Food recorded: Protein bar, dosa, daal, chowmin. Stay mindful of protein and hydration. | On March 14, you interacted with: Friends and family. Nurturing the right relationships is part of growth. | That was a strong day. Use it as a reference point for future days."
   }
 ]

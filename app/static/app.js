@@ -7,8 +7,43 @@ const loginWall = document.getElementById('loginWall');
 const mainContent = document.getElementById('mainContent');
 const hasMedicinesCheck = document.getElementById('hasMedicinesCheck');
 const medicinesTakenRow = document.getElementById('medicinesTakenRow');
+const dateInput = document.getElementById('dateInput');
+const futureDateWarn = document.getElementById('futureDateWarn');
+const submitBtn = form.querySelector('button[type="submit"]');
 
 let editingDate = null;
+
+// ── Date helpers ─────────────────────────────────────────────────────────────
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isFuture(dateStr) {
+  return dateStr > todayStr();
+}
+
+function validateDateInput() {
+  const val = dateInput.value;
+  if (val && isFuture(val)) {
+    futureDateWarn.style.display = 'flex';
+    submitBtn.disabled = true;
+    submitBtn.style.opacity = '0.5';
+  } else {
+    futureDateWarn.style.display = 'none';
+    submitBtn.disabled = false;
+    submitBtn.style.opacity = '';
+  }
+}
+
+dateInput.addEventListener('change', validateDateInput);
+
+// ── Sort entries: date DESC, created_at DESC ─────────────────────────────────────
+function sortEntries(entries) {
+  return entries.slice().sort((a, b) => {
+    if (b.date !== a.date) return b.date > a.date ? 1 : -1;
+    return (b.created_at || '') > (a.created_at || '') ? 1 : -1;
+  });
+}
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 async function initAuth() {
@@ -104,6 +139,15 @@ hasMedicinesCheck.addEventListener('change', () => {
   if (!hasMedicinesCheck.checked) form.elements['medicines_taken'].checked = false;
 });
 
+// ── Sports "Other" toggle ─────────────────────────────────────────────────────
+document.querySelectorAll('input[name="sports"]').forEach(r => {
+  r.addEventListener('change', () => {
+    const sportsOther = document.getElementById('sportsOther');
+    sportsOther.style.display = document.getElementById('sportsOtherRadio').checked ? 'block' : 'none';
+    if (!document.getElementById('sportsOtherRadio').checked) sportsOther.value = '';
+  });
+});
+
 // ── Summary rendering ─────────────────────────────────────────────────────────
 function formatSummary(raw) {
   if (!raw) return '<p class="placeholder">-</p>';
@@ -136,15 +180,55 @@ function renderEntry(entry) {
   `;
 }
 
+// ── Chip helpers ──────────────────────────────────────────────────────────────
+function getCheckedValues(name) {
+  return [...form.querySelectorAll(`input[name="${name}"]:checked`)].map(i => i.value);
+}
+
+function setChipValues(name, values) {
+  form.querySelectorAll(`input[name="${name}"]`).forEach(i => {
+    i.checked = values.includes(i.value);
+  });
+}
+
 function fillFormForEdit(entry) {
   editingDate = entry.date;
   document.getElementById('dateInput').value = entry.date;
   document.getElementById('dateInput').disabled = true;
-  form.elements['goals'].value = entry.goals || '';
+
+  // Goals: split stored string back into chips + other
+  const goalOptions = ['Weight loss','Muscle gain','Improve stamina','Healthy lifestyle','Better sleep','Stress reduction'];
+  const goalParts = (entry.goals || '').split(',').map(s => s.trim()).filter(Boolean);
+  const knownGoals = goalParts.filter(g => goalOptions.includes(g));
+  const otherGoal = goalParts.filter(g => !goalOptions.includes(g)).join(', ');
+  setChipValues('goals', knownGoals);
+  document.getElementById('goalsOther').value = otherGoal;
+
   form.elements['people_involved'].value = entry.people_involved || '';
   form.elements['phone_minutes'].value = entry.phone_minutes || 0;
-  form.elements['food'].value = entry.food || '';
-  form.elements['sports'].value = entry.sports || '';
+
+  // Food: split stored string back into chips + other
+  const foodOptions = ['Fruits','Nuts','Protein bar','Yogurt','Salad','Smoothie'];
+  const foodParts = (entry.food || '').split(',').map(s => s.trim()).filter(Boolean);
+  const knownFood = foodParts.filter(f => foodOptions.includes(f));
+  const otherFood = foodParts.filter(f => !foodOptions.includes(f)).join(', ');
+  setChipValues('food', knownFood);
+  document.getElementById('foodOther').value = otherFood;
+
+  // Sports: radio
+  const sportsOptions = ['Walking','Running','Gym workout','Yoga','Cycling','Stretching','Rest day'];
+  const sportsVal = (entry.sports || '').split(',')[0].trim();
+  const sportsOtherVal = (entry.sports || '').split(',').slice(1).join(',').trim();
+  if (sportsOptions.includes(sportsVal)) {
+    const radio = form.querySelector(`input[name="sports"][value="${sportsVal}"]`);
+    if (radio) radio.checked = true;
+    document.getElementById('sportsOther').style.display = 'none';
+  } else {
+    document.getElementById('sportsOtherRadio').checked = true;
+    document.getElementById('sportsOther').style.display = 'block';
+    document.getElementById('sportsOther').value = entry.sports || '';
+  }
+
   form.elements['has_medicines'].checked = !!entry.has_medicines;
   medicinesTakenRow.style.display = entry.has_medicines ? 'grid' : 'none';
   form.elements['medicines_taken'].checked = !!entry.medicines_taken;
@@ -154,10 +238,16 @@ function fillFormForEdit(entry) {
 
 function resetForm() {
   editingDate = null;
-  document.getElementById('dateInput').disabled = false;
+  dateInput.disabled = false;
+  dateInput.value = todayStr();
   form.querySelector('button[type="submit"]').textContent = 'Save Entry';
   medicinesTakenRow.style.display = 'none';
+  document.getElementById('sportsOther').style.display = 'none';
+  futureDateWarn.style.display = 'none';
+  submitBtn.disabled = false;
+  submitBtn.style.opacity = '';
   form.reset();
+  dateInput.value = todayStr(); // reset() clears it, restore today
 }
 
 // ── History ───────────────────────────────────────────────────────────────────
@@ -190,19 +280,19 @@ function buildHistoryItem(entry) {
 }
 
 function renderHistory(entries) {
+  const sorted = sortEntries(entries);
   historyList.innerHTML = '';
-  if (!entries.length) {
+  if (!sorted.length) {
     historyList.innerHTML = '<p class="placeholder">No history yet.</p>';
     return;
   }
-  const reversed = entries.slice().reverse();
-  const visible = historyShowAll ? reversed : reversed.slice(0, HISTORY_PAGE_SIZE);
+  const visible = historyShowAll ? sorted : sorted.slice(0, HISTORY_PAGE_SIZE);
   visible.forEach(entry => historyList.appendChild(buildHistoryItem(entry)));
 
-  if (reversed.length > HISTORY_PAGE_SIZE) {
+  if (sorted.length > HISTORY_PAGE_SIZE) {
     const btn = document.createElement('button');
     btn.className = 'btn-view-more';
-    btn.textContent = historyShowAll ? 'Show Less ▲' : `View More (${reversed.length - HISTORY_PAGE_SIZE} more) ▼`;
+    btn.textContent = historyShowAll ? 'Show Less ▲' : `View More (${sorted.length - HISTORY_PAGE_SIZE} more) ▼`;
     btn.addEventListener('click', () => { historyShowAll = !historyShowAll; renderHistory(entries); });
     historyList.appendChild(btn);
   }
@@ -229,24 +319,51 @@ function renderHistory(entries) {
 async function loadHistory() {
   const res = await fetch('/api/entries');
   if (res.status === 401) return;
-  renderHistory(await res.json());
+  renderHistory(await res.json()); // already sorted by backend
 }
 
 async function loadLast() {
   const res = await fetch('/api/entries/last');
   if (res.status === 401) return;
-  renderEntry(await res.json());
+  renderEntry(await res.json()); // backend returns most recent by date
 }
 
 // ── Form submit ───────────────────────────────────────────────────────────────
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const data = Object.fromEntries(new FormData(form).entries());
-  const empty = ['goals', 'people_involved', 'food', 'sports'].find(f => !data[f]?.trim());
-  if (empty) { alert(`"${empty.replace('_', ' ')}" is required. Write "nil" if nothing to fill.`); return; }
-  data.phone_minutes = parseInt(data.phone_minutes || '0', 10);
-  data.has_medicines = form.elements['has_medicines'].checked;
-  data.medicines_taken = form.elements['medicines_taken'].checked;
+
+  const selectedDate = dateInput.value;
+  if (isFuture(selectedDate)) {
+    futureDateWarn.style.display = 'flex';
+    return;
+  }
+
+  const goals = getCheckedValues('goals');
+  const goalsOther = document.getElementById('goalsOther').value.trim();
+  const food = getCheckedValues('food');
+  const foodOther = document.getElementById('foodOther').value.trim();
+  const sportsRadio = form.querySelector('input[name="sports"]:checked');
+  const sportsOther = document.getElementById('sportsOther').value.trim();
+  const people = form.elements['people_involved'].value.trim();
+
+  if (!goals.length && !goalsOther) { alert('Please select at least one goal or enter a custom goal.'); return; }
+  if (!food.length && !foodOther) { alert('Please select at least one food item or enter a custom one.'); return; }
+  if (!sportsRadio) { alert('Please select a sports/activity option.'); return; }
+  if (!people) { alert('People Involved is required. Write "nil" if none.'); return; }
+
+  const data = {
+    date: selectedDate,
+    goals,
+    goals_other: goalsOther,
+    people_involved: people,
+    phone_minutes: parseInt(form.elements['phone_minutes'].value || '0', 10),
+    food,
+    food_other: foodOther,
+    sports: sportsRadio.value === 'Other' ? 'Other' : sportsRadio.value,
+    sports_other: sportsRadio.value === 'Other' ? sportsOther : '',
+    has_medicines: form.elements['has_medicines'].checked,
+    medicines_taken: form.elements['medicines_taken'].checked,
+  };
 
   const url = editingDate ? `/api/entries/${editingDate}` : '/api/entries';
   const res = await fetch(url, {
@@ -254,9 +371,11 @@ form.addEventListener('submit', async (e) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
-  renderEntry(await res.json());
+  const saved = await res.json();
+  if (!res.ok) { alert(saved.error || 'Failed to save entry.'); return; }
+  renderEntry(saved);
   resetForm();
-  await loadHistory();
+  await loadHistory(); // re-fetches sorted list from backend
 });
 
 loadLastBtn.addEventListener('click', loadLast);

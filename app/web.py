@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 from pathlib import Path
 from datetime import datetime
-import json, os, random, hashlib
+import json, os, random, hashlib, base64
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / 'templates'
@@ -27,16 +27,28 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 # ── Users store ───────────────────────────────────────────────────────────────
+# On Vercel, /tmp is ephemeral per cold-start, so we persist users in an
+# env var USERS_DATA (base64-encoded JSON). Locally we use a JSON file.
+
+def _is_vercel() -> bool:
+    return bool(os.environ.get('VERCEL'))
+
+
 def _users_path() -> Path:
-    if os.environ.get('VERCEL'):
-        d = Path('/tmp') / 'growthtracker'
-    else:
-        d = BASE_DIR.parent / 'data'
+    d = BASE_DIR.parent / 'data'
     d.mkdir(parents=True, exist_ok=True)
     return d / 'users.json'
 
 
 def _read_users() -> dict:
+    if _is_vercel():
+        raw = os.environ.get('USERS_DATA', '')
+        if not raw:
+            return {}
+        try:
+            return json.loads(base64.b64decode(raw).decode('utf-8'))
+        except Exception:
+            return {}
     p = _users_path()
     if not p.exists():
         return {}
@@ -47,6 +59,12 @@ def _read_users() -> dict:
 
 
 def _write_users(users: dict):
+    if _is_vercel():
+        # Persist back to env var at runtime (survives within the same process;
+        # for true persistence across cold-starts set USERS_DATA in Vercel dashboard)
+        encoded = base64.b64encode(json.dumps(users).encode('utf-8')).decode()
+        os.environ['USERS_DATA'] = encoded
+        return
     _users_path().write_text(json.dumps(users, indent=2), encoding='utf-8')
 
 
@@ -64,7 +82,7 @@ def _current_user(request: Request) -> str:
 
 # ── Data store ────────────────────────────────────────────────────────────────
 def _data_path(username: str) -> Path:
-    if os.environ.get('VERCEL'):
+    if _is_vercel():
         d = Path('/tmp') / 'growthtracker' / username
     else:
         d = BASE_DIR.parent / 'data' / username
@@ -90,6 +108,11 @@ def _today_str():
     return datetime.now().strftime('%Y-%m-%d')
 
 
+def _sort_entries(entries: list) -> list:
+    """Sort entries by date DESC, then created_at DESC."""
+    return sorted(entries, key=lambda e: (e.get('date', ''), e.get('created_at', '')), reverse=True)
+
+
 def _safe_int(value, default=0):
     try:
         return int(value)
@@ -97,28 +120,66 @@ def _safe_int(value, default=0):
         return default
 
 
+def _join_field(selected, other: str = None) -> str:
+    """Combine a list/string of selected options with an optional free-text 'other'."""
+    parts = []
+    if isinstance(selected, list):
+        parts = [s.strip() for s in selected if s and s.strip()]
+    elif selected:
+        parts = [selected.strip()]
+    if other and other.strip():
+        parts.append(other.strip())
+    return ', '.join(parts) if parts else ''
+
+
 # ── Summary ───────────────────────────────────────────────────────────────────
-_CLOSERS_HIGH = [
+_CLOSERS_TODAY_HIGH = [
     "You're building something real. Keep that energy tomorrow.",
     "Solid day. One more like this and it becomes a streak.",
     "This is what growth looks like. Show up the same way tomorrow.",
-    "You did the work. That's what separates people who talk from people who do.",
 ]
-_CLOSERS_MID = [
+_CLOSERS_TODAY_MID = [
     "Not perfect, but you showed up. That already puts you ahead of most.",
     "Good foundation. Tomorrow, pick one thing to do better and own it.",
     "Progress isn't always loud. You moved forward today — build on it.",
-    "Every average day you push through is training for your best days.",
 ]
-_CLOSERS_LOW = [
+_CLOSERS_TODAY_LOW = [
     "Today wasn't your best — and that's okay. Reset, sleep well, attack tomorrow.",
     "The fact that you're tracking means you care. Use that energy tomorrow.",
     "One rough day doesn't define the week. Tomorrow is a clean slate.",
-    "You logged it. That's honesty. Now use it as fuel, not guilt.",
+]
+_CLOSERS_PAST_HIGH = [
+    "Good consistency on that day. Every logged day builds the bigger picture.",
+    "That was a strong day. Use it as a reference point for future days.",
+]
+_CLOSERS_PAST_MID = [
+    "A decent day in the books. Past logs help you spot patterns over time.",
+    "Logged and recorded. Reviewing past entries is how you find what works.",
+]
+_CLOSERS_PAST_LOW = [
+    "Not your best day, but you logged it — that honesty is valuable.",
+    "Every low day recorded is data. Use it to understand what to change.",
 ]
 
 
+def _fmt_date(date_str: str) -> str:
+    """Format YYYY-MM-DD as 'Month D' for use in summaries."""
+    try:
+        return datetime.strptime(date_str, '%Y-%m-%d').strftime('%B %-d')
+    except Exception:
+        try:
+            return datetime.strptime(date_str, '%Y-%m-%d').strftime('%B %d').replace(' 0', ' ')
+        except Exception:
+            return date_str
+
+
 def _generate_summary(entry: dict) -> str:
+    date_str = entry.get('date') or _today_str()
+    today = _today_str()
+    is_past = date_str < today
+    prefix = f'On {_fmt_date(date_str)}, you' if is_past else 'Today you'
+    ref_next = f'the following day' if is_past else 'tomorrow'
+
     phone = entry.get('phone_minutes', 0)
     goals = (entry.get('goals') or '').strip()
     sports = (entry.get('sports') or '').strip()
@@ -128,45 +189,53 @@ def _generate_summary(entry: dict) -> str:
     medicines_taken = bool(entry.get('medicines_taken', False))
     lines = []
 
-    if phone <= 60:
-        lines.append(f'Only {phone} min on phone — your focus was sharp today.')
-    elif phone <= 120:
-        lines.append(f'{phone} min on phone is decent. Try cutting 20 min tomorrow for an extra focus block.')
-    elif phone <= 240:
-        lines.append(f'{phone} min on phone is eating into your productive hours. Set app limits tonight.')
-    else:
-        lines.append(f'{phone} min on phone is too high. Put it face-down during work and meals tomorrow.')
+    # Phone — only comment if user actually entered a value > 0
+    if phone > 0:
+        if phone <= 60:
+            lines.append(f'{prefix} spent only {phone} min on your phone — solid focus.')
+        elif phone <= 120:
+            lines.append(f'{prefix} spent {phone} min on your phone, which is reasonable.')
+        elif phone <= 240:
+            lines.append(f'{prefix} spent {phone} min on your phone. Consider setting app limits {ref_next}.')
+        else:
+            lines.append(f'{prefix} spent {phone} min on your phone — that is quite high. Try putting it face-down during work {ref_next}.')
 
-    if goals and goals.lower() != 'nil':
+    # Goals — only comment if something was actually selected
+    if goals:
         preview = goals[:80] + ('...' if len(goals) > 80 else '')
-        lines.append(f'Goals set: "{preview}". Before sleeping, check which ones you actually completed.')
-    else:
-        lines.append('No goals logged. Tomorrow morning, write down 1-3 specific things you want to finish.')
+        lines.append(f'Goals logged: {preview}. Review which ones were completed before the day ends.')
+    
+    # Sports — only comment if something was selected
+    if sports and sports.lower() not in ('', 'nil'):
+        lines.append(f'{prefix} logged physical activity: {sports[:50]}. Staying active directly improves focus and mood.')
 
-    if sports and sports.lower() != 'nil':
-        lines.append(f'You moved your body ({sports[:50]}). Physical activity directly boosts focus and mood the next day.')
-    else:
-        lines.append('No physical activity today. Even a 20-min walk tomorrow will improve your energy and sleep quality.')
+    # Food — only comment if something was selected
+    if food and food.lower() not in ('', 'nil'):
+        lines.append(f'Food recorded: {food[:60]}. Stay mindful of protein and hydration.')
 
-    if food and food.lower() != 'nil':
-        lines.append(f'Food tracked ({food[:50]}). Stay mindful of protein and hydration — they fuel your brain.')
-    else:
-        lines.append('No food logged. What you eat directly affects your energy. Be more intentional tomorrow.')
+    # People — only comment if something was entered
+    if people and people.lower() not in ('', 'nil'):
+        lines.append(f'{prefix} interacted with: {people[:50]}. Nurturing the right relationships is part of growth.')
 
-    if people and people.lower() != 'nil':
-        lines.append(f'You engaged with people ({people[:50]}). Nurture the right relationships — they are part of growth.')
-    else:
-        lines.append('No interactions logged. Reach out to one person tomorrow — a mentor, friend, or teammate.')
-
+    # Medicines — only comment if user explicitly opted in
     if has_medicines:
         if medicines_taken:
-            lines.append('Medicines taken. Good — consistency with medication is important.')
+            lines.append('Prescribed medicines were taken. Good — consistency with medication matters.')
         else:
             lines.append('No medicine intake was recorded today. If you have a prescription, try to stay consistent.')
 
-    is_high = phone <= 120 and sports and sports.lower() != 'nil'
+    # If almost nothing was logged, give a neutral minimal summary
+    if len(lines) == 0:
+        label = f'Your entry for {_fmt_date(date_str)}' if is_past else 'Your entry for today'
+        lines.append(f'{label} was recorded successfully. Continue logging your daily activities.')
+
+    # Closer — tone depends on date context and activity level
+    is_high = phone <= 120 and bool(sports and sports.lower() not in ('', 'nil'))
     is_low = phone > 240
-    lines.append(random.choice(_CLOSERS_HIGH if is_high else _CLOSERS_LOW if is_low else _CLOSERS_MID))
+    if is_past:
+        lines.append(random.choice(_CLOSERS_PAST_HIGH if is_high else _CLOSERS_PAST_LOW if is_low else _CLOSERS_PAST_MID))
+    else:
+        lines.append(random.choice(_CLOSERS_TODAY_HIGH if is_high else _CLOSERS_TODAY_LOW if is_low else _CLOSERS_TODAY_MID))
 
     return ' | '.join(lines)
 
@@ -193,9 +262,13 @@ async def login(request: Request):
     body = await request.json()
     username = (body.get('username') or '').strip().lower()
     pin = str(body.get('pin') or '').strip()
+    if not username or not pin:
+        return JSONResponse({'error': 'Username and PIN are required.'}, status_code=400)
     users = _read_users()
-    if users.get(username) != _hash_pin(pin):
-        return JSONResponse({'error': 'Invalid username or PIN.'}, status_code=401)
+    if username not in users:
+        return JSONResponse({'error': 'User not found. Please register first.'}, status_code=401)
+    if users[username] != _hash_pin(pin):
+        return JSONResponse({'error': 'Incorrect PIN. Please try again.'}, status_code=401)
     request.session['username'] = username
     return JSONResponse({'ok': True, 'username': username})
 
@@ -223,26 +296,30 @@ def index(request: Request):
 # ── API (all protected) ───────────────────────────────────────────────────────
 @app.get('/api/entries')
 def list_entries(request: Request):
-    return JSONResponse(_read_entries(_current_user(request)))
+    return JSONResponse(_sort_entries(_read_entries(_current_user(request))))
 
 
 @app.get('/api/entries/last')
 def last_entry(request: Request):
-    entries = _read_entries(_current_user(request))
-    return JSONResponse(entries[-1] if entries else {})
+    entries = _sort_entries(_read_entries(_current_user(request)))
+    return JSONResponse(entries[0] if entries else {})
 
 
 @app.post('/api/entries')
 async def create_entry(request: Request):
     uid = _current_user(request)
     payload = await request.json()
+    date_val = (payload.get('date') or _today_str()).strip()
+    if date_val > _today_str():
+        return JSONResponse({'error': 'You cannot log entries for future dates.'}, status_code=400)
     entry = {
-        'date': payload.get('date') or _today_str(),
-        'goals': (payload.get('goals') or '').strip(),
+        'date': date_val,
+        'created_at': datetime.now().isoformat(),
+        'goals': _join_field(payload.get('goals'), payload.get('goals_other')),
         'people_involved': (payload.get('people_involved') or '').strip(),
         'phone_minutes': _safe_int(payload.get('phone_minutes'), 0),
-        'food': (payload.get('food') or '').strip(),
-        'sports': (payload.get('sports') or '').strip(),
+        'food': _join_field(payload.get('food'), payload.get('food_other')),
+        'sports': _join_field(payload.get('sports'), payload.get('sports_other')),
         'has_medicines': bool(payload.get('has_medicines', False)),
         'medicines_taken': bool(payload.get('medicines_taken', False)),
     }
@@ -256,6 +333,8 @@ async def create_entry(request: Request):
 @app.put('/api/entries/{date}')
 async def update_entry(date: str, request: Request):
     uid = _current_user(request)
+    if date > _today_str():
+        return JSONResponse({'error': 'You cannot log entries for future dates.'}, status_code=400)
     payload = await request.json()
     entries = _read_entries(uid)
     idx = next((i for i, e in enumerate(entries) if e['date'] == date), None)
@@ -263,11 +342,12 @@ async def update_entry(date: str, request: Request):
         return JSONResponse({'error': 'Not found'}, status_code=404)
     entry = {
         'date': date,
-        'goals': (payload.get('goals') or '').strip(),
+        'created_at': entries[idx].get('created_at', datetime.now().isoformat()),
+        'goals': _join_field(payload.get('goals'), payload.get('goals_other')),
         'people_involved': (payload.get('people_involved') or '').strip(),
         'phone_minutes': _safe_int(payload.get('phone_minutes'), 0),
-        'food': (payload.get('food') or '').strip(),
-        'sports': (payload.get('sports') or '').strip(),
+        'food': _join_field(payload.get('food'), payload.get('food_other')),
+        'sports': _join_field(payload.get('sports'), payload.get('sports_other')),
         'has_medicines': bool(payload.get('has_medicines', False)),
         'medicines_taken': bool(payload.get('medicines_taken', False)),
     }

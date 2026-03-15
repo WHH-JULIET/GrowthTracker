@@ -57,28 +57,58 @@
           <form id="entryForm">
             <label>
               Date
-              <input type="date" name="date" id="dateInput" value="{{ today }}" />
+              <input type="date" name="date" id="dateInput" value="{{ today }}" max="{{ today }}" />
+            </label>
+            <p id="futureDateWarn" class="form-error" style="display:none;">📅 You cannot log entries for future dates.</p>
+            <fieldset class="chip-group" id="goalsGroup">
+              <legend>🎯 Goals <span class="field-hint">(pick all that apply)</span></legend>
+              <div class="chips">
+                <label class="chip"><input type="checkbox" name="goals" value="Weight loss" />Weight loss</label>
+                <label class="chip"><input type="checkbox" name="goals" value="Muscle gain" />Muscle gain</label>
+                <label class="chip"><input type="checkbox" name="goals" value="Improve stamina" />Improve stamina</label>
+                <label class="chip"><input type="checkbox" name="goals" value="Healthy lifestyle" />Healthy lifestyle</label>
+                <label class="chip"><input type="checkbox" name="goals" value="Better sleep" />Better sleep</label>
+                <label class="chip"><input type="checkbox" name="goals" value="Stress reduction" />Stress reduction</label>
+              </div>
+              <input type="text" id="goalsOther" name="goals_other" placeholder="Other goal…" />
+            </fieldset>
+
+            <label>
+              👥 People Involved in My Life
+              <textarea name="people_involved" rows="2" placeholder="People you interacted with today (or nil)" required></textarea>
             </label>
             <label>
-              Goals
-              <textarea name="goals" rows="3" placeholder="Top 1-3 goals (or nil)" required></textarea>
-            </label>
-            <label>
-              People Involved in My Life
-              <textarea name="people_involved" rows="3" placeholder="People you interacted with today (or nil)" required></textarea>
-            </label>
-            <label>
-              Phone Time (min)
+              📱 Phone Time (min)
               <input type="number" name="phone_minutes" min="0" placeholder="0" />
             </label>
-            <label>
-              Food Items
-              <textarea name="food" rows="2" placeholder="Meals/snacks (or nil)" required></textarea>
-            </label>
-            <label>
-              Sports/Activity
-              <textarea name="sports" rows="2" placeholder="Sports or workout (or nil)" required></textarea>
-            </label>
+
+            <fieldset class="chip-group" id="foodGroup">
+              <legend>🥗 Food / Snacks <span class="field-hint">(pick all that apply)</span></legend>
+              <div class="chips">
+                <label class="chip"><input type="checkbox" name="food" value="Fruits" />Fruits</label>
+                <label class="chip"><input type="checkbox" name="food" value="Nuts" />Nuts</label>
+                <label class="chip"><input type="checkbox" name="food" value="Protein bar" />Protein bar</label>
+                <label class="chip"><input type="checkbox" name="food" value="Yogurt" />Yogurt</label>
+                <label class="chip"><input type="checkbox" name="food" value="Salad" />Salad</label>
+                <label class="chip"><input type="checkbox" name="food" value="Smoothie" />Smoothie</label>
+              </div>
+              <input type="text" id="foodOther" name="food_other" placeholder="Other food…" />
+            </fieldset>
+
+            <fieldset class="chip-group" id="sportsGroup">
+              <legend>🏃 Sports / Activity <span class="field-hint">(pick one)</span></legend>
+              <div class="chips">
+                <label class="chip"><input type="radio" name="sports" value="Walking" />Walking</label>
+                <label class="chip"><input type="radio" name="sports" value="Running" />Running</label>
+                <label class="chip"><input type="radio" name="sports" value="Gym workout" />Gym workout</label>
+                <label class="chip"><input type="radio" name="sports" value="Yoga" />Yoga</label>
+                <label class="chip"><input type="radio" name="sports" value="Cycling" />Cycling</label>
+                <label class="chip"><input type="radio" name="sports" value="Stretching" />Stretching</label>
+                <label class="chip"><input type="radio" name="sports" value="Rest day" />Rest day</label>
+                <label class="chip"><input type="radio" name="sports" value="Other" id="sportsOtherRadio" />Other</label>
+              </div>
+              <input type="text" id="sportsOther" name="sports_other" placeholder="Describe activity…" style="display:none;" />
+            </fieldset>
             <label class="toggle">
               <input type="checkbox" name="has_medicines" id="hasMedicinesCheck" />
               I have prescribed medicines
